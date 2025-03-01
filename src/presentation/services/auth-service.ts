@@ -1,6 +1,6 @@
 import { CustomError, LoginUserDto, RegisterUserDto, UserEntity } from '../../domain';
 import { UserModel } from '../../data';
-import { bcryptAdapter } from '../../config';
+import { bcryptAdapter, JwtAdapter } from '../../config';
 
 export class AuthService {
 	constructor() {}
@@ -37,7 +37,11 @@ export class AuthService {
 			if ( isValidPassword ) {
 				const { password, ...userEntity } =  UserEntity.fromObject( existUser );
 			
-				return { user: userEntity, token: 'ABC' };
+				const token = await JwtAdapter.generateToken({ id: userEntity.id });
+
+				if ( !token ) CustomError.internalServer('Error while creating token');
+
+				return { user: userEntity, token: token };
 				
 			} else {
 				throw CustomError.badRequest('Invalid password');
