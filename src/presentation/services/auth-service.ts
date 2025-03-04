@@ -1,9 +1,12 @@
 import { CustomError, LoginUserDto, RegisterUserDto, UserEntity } from '../../domain';
 import { UserModel } from '../../data';
-import { bcryptAdapter, JwtAdapter } from '../../config';
+import { bcryptAdapter, envs, JwtAdapter } from '../../config';
+import { EmailService } from './email-service';
 
 export class AuthService {
-	constructor() {}
+	constructor(
+		private readonly emailService: EmailService
+	) {}
 
 	public async registerUser( registerUserDto: RegisterUserDto){
 
@@ -14,11 +17,15 @@ export class AuthService {
 		try {
 			const user = new UserModel( registerUserDto);
 
+			//Password encryption
 			user.password = bcryptAdapter.hash(registerUserDto.password);
 
 			await user.save();
 
-			const { password, ...userEntity } =  UserEntity.fromObject( user );;
+			//Sending Email confirmation
+			await this.sendEmailValidationLink( user.email );
+
+			const { password, ...userEntity } =  UserEntity.fromObject( user );
 
 			return{ user: userEntity, token: 'ABC'};
 
@@ -47,5 +54,46 @@ export class AuthService {
 				throw CustomError.badRequest('Invalid password');
 			}
 		} else throw CustomError.badRequest('Invalid email');
+	}
+
+	private sendEmailValidationLink = async( email: string ) => {
+
+		const token = await JwtAdapter.generateToken({ email });
+		if( !token ) throw CustomError.internalServer('Error getting token');
+
+		const link = `${ envs.WEBSERVICE_URL }/auth/validate-email/${ token }`;
+		const html = `
+			<h1>Validate your email</h1>
+			<p>Click in the link below to validate your email</p>
+			<a href=${link}>Validate your email: ${email}</a>
+		`
+		const options = {
+			to: email,
+			subject: 'Validate your email',
+			htmlBody: html
+		}
+
+		const inSet = await this.emailService.sendEmail( options );
+		if( !inSet ) throw CustomError.internalServer('Error sending email');
+
+		return true;
+	}
+
+	public validateEmail = async( token: string ) =>{
+		
+		const payload = await JwtAdapter.validateToken( token );
+		
+		if ( !payload ) throw CustomError.unauthorized('Invalid token');
+
+		const { email } = payload as { email: string };
+		if ( !email ) throw CustomError.internalServer('Email not in token');
+
+		const user = await UserModel.findOne({ email });
+		if ( !user ) throw CustomError.internalServer('Email not exists');
+
+		user.emailValidated = true;
+		await user.save();
+
+		return true;
 	}
 }
