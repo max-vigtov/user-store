@@ -15,7 +15,7 @@ export class AuthService {
 		if ( existUser ) throw CustomError.badRequest('Email already exist');
 
 		try {
-			const user = new UserModel( registerUserDto);
+			const user = new UserModel( registerUserDto );
 
 			//Password encryption
 			user.password = bcryptAdapter.hash(registerUserDto.password);
@@ -27,7 +27,7 @@ export class AuthService {
 
 			const { password, ...userEntity } =  UserEntity.fromObject( user );
 
-			return{ user: userEntity, token: 'ABC'};
+			return{ user: userEntity };
 
 		} catch (error) {
 			throw CustomError.internalServer(`${ error }`)
