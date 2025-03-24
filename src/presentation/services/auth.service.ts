@@ -1,7 +1,7 @@
 import { CustomError, LoginUserDto, RegisterUserDto, UserEntity } from '../../domain';
 import { UserModel } from '../../data';
 import { bcryptAdapter, envs, JwtAdapter } from '../../config';
-import { EmailService } from './email-service';
+import { EmailService } from './email.service';
 
 export class AuthService {
 	constructor(
@@ -81,8 +81,7 @@ export class AuthService {
 
 	public validateEmail = async( token: string ) =>{
 		
-		const payload = await JwtAdapter.validateToken( token );
-		
+		const payload = await JwtAdapter.validateToken( token );		
 		if ( !payload ) throw CustomError.unauthorized('Invalid token');
 
 		const { email } = payload as { email: string };
